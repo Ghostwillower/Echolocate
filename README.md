@@ -22,9 +22,16 @@ EchoLocate passively tracks where everyday objects were last heard using the com
 
 To run commands use `python echolocate_cli.py <command>`.
 ### Teach an item
-Record a few seconds of the item's sound to a WAV file and run:
+You can provide a recording or let EchoLocate capture one from the microphone.
+
+Record automatically (3 seconds by default):
 ```bash
-echolocate teach keys keys.wav
+echolocate teach keys
+```
+
+Or use an existing WAV file:
+```bash
+echolocate teach keys --file keys.wav
 ```
 
 ### Run the listener

@@ -2,7 +2,7 @@ import queue
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import numpy as np
 try:
@@ -61,8 +61,15 @@ class ItemRecognizer:
     def __init__(self):
         self.templates: Dict[str, np.ndarray] = {}
 
-    def teach(self, item: str, path: Path):
-        y, _ = librosa.load(path, sr=SAMPLE_RATE)
+    def teach(self, item: str, source: Union[Path, np.ndarray]):
+        """Learn the characteristic sound of ``item``.
+
+        ``source`` may be a Path to a WAV file or an in-memory audio array.
+        """
+        if isinstance(source, Path):
+            y, _ = librosa.load(source, sr=SAMPLE_RATE)
+        else:
+            y = source
         mfcc = librosa.feature.mfcc(y=y, sr=SAMPLE_RATE, n_mfcc=20)
         self.templates[item] = mfcc
 
@@ -76,9 +83,17 @@ class ItemRecognizer:
         return hits
 
 class EchoLocateRunner:
-    def __init__(self, recognizer: ItemRecognizer, fingerprint: RoomFingerprint):
+    def __init__(self, recognizer: ItemRecognizer, fingerprint: RoomFingerprint,
+                 cluster_interval: int = 10):
+        """Runner processing live audio.
+
+        ``cluster_interval`` determines after how many chunks the room
+        fingerprints are re-clustered automatically.
+        """
         self.recognizer = recognizer
         self.fingerprint = fingerprint
+        self.cluster_interval = cluster_interval
+        self._counter = 0
         self.queue = queue.Queue()
         self.running = False
         self.thread = None
@@ -87,6 +102,9 @@ class EchoLocateRunner:
         while self.running:
             data = record_audio(CHUNK_SECONDS)
             self.fingerprint.add(data)
+            self._counter += 1
+            if self._counter % self.cluster_interval == 0:
+                self.fingerprint.cluster()
             zone = self.fingerprint.predict(data)
             for item in self.recognizer.match(data):
                 log_event(item, zone, datetime.utcnow())

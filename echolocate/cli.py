@@ -12,11 +12,16 @@ runner = EchoLocateRunner(recognizer, fingerprint)
 
 
 def cmd_teach(args):
-    path = Path(args.file)
-    if not path.exists():
-        print(f"File {path} does not exist")
-        return
-    recognizer.teach(args.item, path)
+    if args.file:
+        path = Path(args.file)
+        if not path.exists():
+            print(f"File {path} does not exist")
+            return
+        recognizer.teach(args.item, path)
+    else:
+        print(f"Recording {args.seconds} seconds for {args.item}...")
+        audio = record_audio(args.seconds)
+        recognizer.teach(args.item, audio)
     print(f"Learned sound for {args.item}")
 
 
@@ -48,7 +53,9 @@ def main(argv=None):
 
     teach_p = sub.add_parser('teach')
     teach_p.add_argument('item')
-    teach_p.add_argument('file')
+    teach_p.add_argument('--file')
+    teach_p.add_argument('--seconds', type=int, default=3,
+                         help='record duration if no file is provided')
     teach_p.set_defaults(func=cmd_teach)
 
     run_p = sub.add_parser('run')
